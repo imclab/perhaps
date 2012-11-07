@@ -1,6 +1,7 @@
 Perhaps: An Option Class for C++
 --------------------------------
 **About**
+
 This is an implementation of Scala's Option class for C++. Implementing the Option
 pattern is useful when creating functions that may not yield a valid result. Options provide
 a simple way to return a "failure", instead of returning a null pointer (which may not be
@@ -24,6 +25,7 @@ This Option class has also included most of the methods from Scala's Option clas
 can do with Options.
 
 **Usage**
+
 Simply #include "perhaps.h" in order to use Options. Perhaps requires std::function, 
 so you must enable c++11 features in your compiler to use Options.
 
@@ -40,5 +42,6 @@ Just like in Scala, these Options are immutable. However, it would be easy to mo
 to expose the `value` member if you really wanted to.
 
 **Examples**
+
 Check out `test.cpp` for examples of how to use the Option class, or just look
 at `perhaps.h`, as the code is pretty straightforward.
