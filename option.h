@@ -2,6 +2,7 @@
 #define OPTION_H
 #include <vector>
 #include <exception>
+#include <functional>
 using namespace std;
 
 class noneGetException: public exception
@@ -14,19 +15,92 @@ class noneGetException: public exception
 template <typename T>
 class Option{
   public:
+    
+    /**
+     * Creates a new Option that contains a the given value
+     */
     Option(T value): value(value) ,hasValue(true) {}
+
+    /**
+     * Creates a new Option that does not contain a value
+     */
     Option(): hasValue(false) {}
+
+    /**
+     * Returns true if this option contains a value, false otherwise
+     */
     bool isDefined() const { return hasValue; }
-    bool isEmpty() const { return hasValue; }
-    bool exists( bool (*p)(T)) const;
-    bool operator==(const Option<T> &other) const;
+
+    /**
+     * Returns true if this option does not contain a value, false otherwise
+     */
+    bool isEmpty() const { return !hasValue; }
+
+    /**
+     * Returns true if this option contains a value and applying the function p
+     * to the value return true
+     */
+    bool exists( function<bool(T)> f) const;
+
+    /**
+     * Returns true if this option and the other option do not contain a value, or 
+     * if they both contain the same value.
+     */
+    template<typename B>
+    bool operator==(const Option<B> &other) const { 
+      if (!(this->hasValue) && !(other.isDefined())) {
+        return true;
+      } else {
+        return this->get() == other.get();
+      }
+    }
+    
+    /**
+     * Returns true if this option and the other option contain different values,
+     * or if one contains a value and the other does not
+     */
+    template<typename B>
+    bool operator!=(const Option<B> &other) const { 
+      if (this->isDefined() == false && other.isDefined() == false) {
+        return false;
+      } else if (this->isDefined() != other.isDefined()) {
+        return true;
+      } else {
+        return this->get() != other.get();
+      }
+    }
+
+    /**
+     * Returns the value that this option contains. If the option does not contain
+     * a value, a "noneGetException" is thrown
+     */
     T operator*() const{ return this->get(); }
-    Option<T> filter(bool (*f)(T)) const;
-    Option<T> filterNot(bool (*f)(T)) const;
+
+    /**
+     * Returns a copy of this Option if it is nonempty and applying f to this 
+     * Option's value returns true
+     */
+    Option<T> filter(function<bool(T)> f) const;
+
+    /**
+     * Returns a copy of this Option if it is nonempty and applying f to this 
+     * Option's value returns false 
+     */
+    Option<T> filterNot(function<bool(T)> f) const;
+
+
+    /**
+     * Returns the value that this option contains. If the option does not contain
+     * a value, a "noneGetException" is thrown
+     */
     T get() const;
 
+    /**
+     * Returns the result of applying f to this option's value if this object has 
+     * a value. Otherwise returns an option that does not contain a value
+     */
     template<typename B>
-    Option<B> flatMap(Option<B> (*f)(T)) const {
+    Option<B> flatMap(function<Option<B>(T)> f) const {
       if (!hasValue){
         return Option<B>();
       } else {
@@ -34,19 +108,40 @@ class Option{
       }
     }
 
-    void foreach( void (*f)(T)) const;
-    void forall( bool (*f)(T)) const;
+    /**
+     * Apply''s the function f on this option's value if the option has a value
+     */
+    void foreach(function<void(T)> f) const;
 
+    /**
+     * Returns the result of applying f to this option's value if this object has 
+     * a value, wrapping it in an Option. Otherwise returns an option that does not contain
+     * a value
+     */
     template<typename B>
-    Option<B> map(B (*f)(T)) const {
+    Option<B> map(function<B(T)> f) const {
       if (!hasValue) {
         return Option<B>();
       } else {
-        return Some(f(value));
+        return Option<B>(f(value));
       }
     }
 
+    /**
+     * If this option has a value, it returns that value. Otherwise it returns _else
+     */
     T getOrElse (T _else) const;
+
+    /**
+     * If this option has a value, it returns this option. Otherwise it evaluates _else
+     * and returns that option instead.
+     */
+     Option<T> orElse (function<Option<T>()> _else) const;
+
+    /**
+     * If this option has a value, this returns a vector containing that value.
+     * Otherwise it returns an empty vector
+     */
     vector<T> toVector() const;
 
   private:
@@ -68,21 +163,12 @@ class Some: public Option<T>{
 };
 
 template <typename T>
-bool Option<T>::exists(bool (*p)(T)) const {
+bool Option<T>::exists(function<bool(T)> p) const {
   return hasValue && p(value);
 }
 
 template <typename T>
-bool Option<T>::operator==(const Option<T> &other) const {
-  if (!(this->hasValue) && !(other.hasValue)) {
-    return true;
-  } else {
-    return this->value == other.value; 
-  }
-}
-
-template <typename T>
-Option<T> Option<T>::filter(bool (*f)(T)) const {
+Option<T> Option<T>::filter(function<bool(T)> f) const {
   if (!hasValue || !f(value)) {
     return None<T>();
   } else {
@@ -91,7 +177,7 @@ Option<T> Option<T>::filter(bool (*f)(T)) const {
 }
 
 template <typename T>
-Option<T> Option<T>::filterNot(bool (*f)(T)) const {
+Option<T> Option<T>::filterNot(function<bool(T)> f) const {
   if (!hasValue || f(value)) {
     return None<T>();
   } else {
@@ -109,18 +195,9 @@ T Option<T>::get() const {
 }
 
 template <typename T>
-void Option<T>::foreach(void (*f)(T)) const {
+void Option<T>::foreach(function<void(T)> f) const {
   if (hasValue) {
     f(value);
-  }
-}
-
-template <typename T>
-void Option<T>::forall(bool (*f)(T)) const {
-  if (hasValue) {
-    return f(value);
-  } else {
-    return true;
   }
 }
 
@@ -130,6 +207,15 @@ T Option<T>::getOrElse (T _else) const {
     return value;
   } else {
     return _else;
+  }
+}
+
+template <typename T>
+Option<T> Option<T>::orElse (function<Option<T>()> _else) const {
+  if ( hasValue ) {
+    return Option(value);
+  } else {
+    return _else();
   }
 }
 
