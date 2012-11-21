@@ -109,7 +109,7 @@ class Option{
     }
 
     /**
-     * Apply''s the function f on this option's value if the option has a value
+     * Apply's the function f on this option's value if the option has a value
      */
     void foreach(function<void(T)> f) const;
 
